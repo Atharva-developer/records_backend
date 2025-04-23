@@ -6,103 +6,94 @@ from Levenshtein import ratio
 from unidecode import unidecode
 from indic_transliteration.sanscript import transliterate, DEVANAGARI, ITRANS
 
-# -------------------- CONFIGURATION --------------------
-
+# Include hindi_fuzzy_merge module
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(BASE_DIR, 'data', 'sample_records.csv')
-DOCS_DIR = os.path.join(BASE_DIR, 'documents')
+sys.path.insert(0, os.path.join(BASE_DIR, 'hindi_fuzzy_merge'))
 
-# Serve files out of ./static at the site root
-app = Flask(
-    __name__,
-    static_folder='static',
-    static_url_path=''     # <–– this makes /foo map to static/foo
-)
+app = Flask(__name__)
+CORS(app)
 
-# Route “/” to static/index.html
-@app.route('/')
-def index():
-    return app.send_static_file('index.html')
+# Path to your sample CSV data and documents directory
+data_file = os.path.join(BASE_DIR, 'data', 'sample_records.csv')
+docs_dir = os.path.join(BASE_DIR, 'documents')
 
-# Serve documents directory via static route
-app.add_url_rule(
-    '/documents/<path:filename>',
-    'documents',
-    lambda filename: send_from_directory(DOCS_DIR, filename)
-)
-
-# Debug: log directory and available files
-print(f"Documents directory: {DOCS_DIR}")
-try:
-    print("Available documents:", os.listdir(DOCS_DIR))
-except Exception as e:
-    print(f"Error listing documents: {e}")
-
-# -------------------- DATA LOAD & NORMALIZATION ---------
-df = pd.read_csv(DATA_FILE, dtype=str)
+# Load and prepare data
+df = pd.read_csv(data_file, dtype=str)
 df.fillna('', inplace=True)
 
+# Normalize function
 def normalize(text: str) -> str:
-    """
-    Transliterate (if needed) and strip diacritics, returning lowercase ASCII.
-    """
     text = text or ''
     try:
         text = transliterate(text, DEVANAGARI, ITRANS)
     except Exception:
         pass
-    return unidecode(text).lower().strip()
+    return unidecode(text).lower()
 
-# Pre-compute normalized columns and a combined search string
-for col in ['owner_name', 'father_name', 'document']:
-    df[f'{col}_norm'] = df[col].apply(normalize)
+# Pre-compute normalized columns
+search_cols = ['owner_name', 'father_name']
+df['search_str'] = df.apply(lambda r: normalize(r['owner_name']) + ' ' + normalize(r['father_name']), axis=1)
+df['owner_str'] = df['owner_name'].apply(normalize)
+df['father_str'] = df['father_name'].apply(normalize)
 
-df['search_str'] = (
-    df['owner_name_norm'] + ' ' +
-    df['father_name_norm'] + ' ' +
-    df['document_norm']
-)
-
-# -------------------- ROUTES -----------------------------
 @app.route('/search')
 def search():
-    """
-    Single endpoint for searching by owner, father, or document keyword.
-    Uses substring or fuzzy match (Levenshtein ratio) on normalized data.
-    """
-    q_raw = request.args.get('q', '').strip()
-    if not q_raw:
+    owner_q = request.args.get('owner', '').strip()
+    father_q = request.args.get('father', '').strip()
+    owner_norm = normalize(owner_q)
+    father_norm = normalize(father_q)
+
+    if owner_q and not father_q:
+        df['score'] = df['owner_str'].apply(lambda x: ratio(owner_norm, x))
+    elif father_q and not owner_q:
+        df['score'] = df['father_str'].apply(lambda x: ratio(father_norm, x))
+    elif owner_q and father_q:
+        query = f"{owner_norm} {father_norm}"
+        df['score'] = df['search_str'].apply(lambda x: ratio(query, x))
+    else:
         return jsonify([])
 
-    q = normalize(q_raw)
-    threshold = 0.7  # fuzzy threshold
+    # Filter and sort results
+    matches = df[df['score'] >= 0.5].sort_values('score', ascending=False).head(20)
+
     results = []
+    for _, row in matches.iterrows():
+        # Extract only the filename (e.g., VID12345.pdf)
+        document_filename = row['document']
+        results.append({
+            'Khata Number': row['Khata Number'],
+            'Khasra Number': row['Khasra Number'],
+            'Area': row['area'],
+            'Document': document_filename  # Return only the filename
+        })
+    return jsonify(results)
 
-    for _, row in df.iterrows():
-        # exact substring
-        if q in row['search_str'] or \
-           ratio(q, row['owner_name_norm']) >= threshold or \
-           ratio(q, row['father_name_norm']) >= threshold or \
-           ratio(q, row['document_norm']) >= threshold:
+@app.route('/search-document')
+def search_document():
+    keyword = request.args.get('q', '').strip().lower()
 
-            doc_url = f"{request.host_url.rstrip('/')}/documents/{row['document']}"
-            results.append({
-                'Khata Number': row['Khata Number'],
-                'Khasra Number': row['Khasra Number'],
-                'Area': row['area'],
-                'Document': doc_url
-            })
+    if not keyword:
+        return jsonify([])
+
+    # Filter rows that contain the keyword in the document column
+    matches = df[df['document'].str.lower().str.contains(keyword)]
+
+    results = []
+    for _, row in matches.iterrows():
+        # Extract only the filename (e.g., VID12345.pdf)
+        document_filename = row['document']
+        results.append({
+            'Khata Number': row['Khata Number'],
+            'Khasra Number': row['Khasra Number'],
+            'Area': row['area'],
+            'Document': document_filename  # Return only the filename
+        })
 
     return jsonify(results)
 
-@app.route('/get-cities')
-def get_cities():
-    """
-    Returns unique district names for dropdowns or filters.
-    """
-    cities = df['district'].unique().tolist()
-    return jsonify(cities)
+@app.route('/documents/<path:filename>')
+def serve_doc(filename):
+    return send_from_directory(docs_dir, filename)
 
-# -------------------- MAIN ------------------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
