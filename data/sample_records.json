@@ -1,0 +1,35 @@
+[
+  {
+    "owner_name": "राम शर्मा",
+    "father_name": "शिव नारायण",
+    "property_id": "VID12345",
+    "Khata Number": "KHATA001",
+    "Khasra Number": "KHASRA100",
+    "area": 120,
+    "district": "Varanasi",
+    "state": "Uttar Pradesh",
+    "document": "VID12345.pdf"
+  },
+  {
+    "owner_name": "सीता देवी",
+    "father_name": "राम बहादुर",
+    "property_id": "VID54321",
+    "Khata Number": "KHATA002",
+    "Khasra Number": "KHASRA200",
+    "area": 100,
+    "district": "Varanasi",
+    "state": "Uttar Pradesh",
+    "document": "sample_land_doc.pdf"
+  },
+  {
+    "owner_name": "ओम प्रकाश",
+    "father_name": "कृष्ण प्रसाद",
+    "property_id": "VID67890",
+    "Khata Number": "KHATA003",
+    "Khasra Number": "KHASRA300",
+    "area": 85,
+    "district": "Varanasi",
+    "state": "Uttar Pradesh",
+    "document": "VID67890.pdf"
+  }
+]
