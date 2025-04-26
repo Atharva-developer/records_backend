@@ -65,11 +65,12 @@ def search():
     results = []
     for _, row in matches.iterrows():
         document_filename = row['document']
+        document_url = f"/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
             'Area': row['area'],
-            'Document': document_filename  # Only filename
+            'Document': document_url  # Only filename
         })
     return jsonify(results)
 
@@ -85,11 +86,12 @@ def search_document():
     results = []
     for _, row in matches.iterrows():
         document_filename = row['document']
+        document_url = f"/static/documents/{document_filename}"        
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
             'Area': row['area'],
-            'Document': document_filename  # Only filename
+            'Document': document_url  # Only filename
         })
 
     return jsonify(results)
