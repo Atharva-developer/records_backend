@@ -43,24 +43,30 @@ def search():
     owner_norm = normalize(owner_q)
     father_norm = normalize(father_q)
 
+    print(f"Received Search Query: owner='{owner_q}', father='{father_q}'")
+    print(f"Normalized: owner='{owner_norm}', father='{father_norm}'")
+
+    # Create a copy to avoid modifying global df
+    temp_df = df.copy()
+
     if owner_q and not father_q:
-        df['score'] = df['owner_str'].apply(lambda x: ratio(owner_norm, x))
+        temp_df['score'] = temp_df['owner_str'].apply(lambda x: ratio(owner_norm, x))
     elif father_q and not owner_q:
-        df['score'] = df['father_str'].apply(lambda x: ratio(father_norm, x))
+        temp_df['score'] = temp_df['father_str'].apply(lambda x: ratio(father_norm, x))
     elif owner_q and father_q:
         query = f"{owner_norm} {father_norm}"
-        df['score'] = df['search_str'].apply(lambda x: ratio(query, x))
+        temp_df['score'] = temp_df['search_str'].apply(lambda x: ratio(query, x))
     else:
         return jsonify([])
 
     # Filter and sort results
-    matches = df[df['score'] >= 0.5].sort_values('score', ascending=False).head(20)
+    matches = temp_df[temp_df['score'] >= 0.5].sort_values('score', ascending=False).head(20)
 
     results = []
     for _, row in matches.iterrows():
         # Extract only the filename (e.g., VID12345.pdf)
         document_filename = row['document']
-        document_url = f"https://records-backend-4lta.onrender.com/static/documents/{document_filename}"
+        document_url = f"https://records-backend-krc7.onrender.com/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
@@ -83,7 +89,7 @@ def search_document():
     for _, row in matches.iterrows():
         # Extract only the filename (e.g., VID12345.pdf)
         document_filename = row['document']
-        document_url = f"https://records-backend-4lta.onrender.com/static/documents/{document_filename}"
+        document_url = f"https://records-backend-krc7.onrender.com/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
