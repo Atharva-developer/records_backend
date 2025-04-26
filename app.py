@@ -1,5 +1,4 @@
-import os
-import sys
+import os, sys
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
@@ -7,7 +6,7 @@ from Levenshtein import ratio
 from unidecode import unidecode
 from indic_transliteration.sanscript import transliterate, DEVANAGARI, ITRANS
 
-# Correct _file_ and _name_
+# Include hindi_fuzzy_merge module
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'hindi_fuzzy_merge'))
 
@@ -16,7 +15,7 @@ CORS(app)
 
 # Path to your sample CSV data and documents directory
 data_file = os.path.join(BASE_DIR, 'data', 'sample_records.csv')
-docs_dir = os.path.join(BASE_DIR, 'static', 'documents')  # <-- Corrected path: static/documents/
+docs_dir = os.path.join(BASE_DIR, 'static', 'documents')
 
 # Load and prepare data
 df = pd.read_csv(data_file, dtype=str)
@@ -54,18 +53,19 @@ def search():
     else:
         return jsonify([])
 
+    # Filter and sort results
     matches = df[df['score'] >= 0.5].sort_values('score', ascending=False).head(20)
 
     results = []
     for _, row in matches.iterrows():
+        # Extract only the filename (e.g., VID12345.pdf)
         document_filename = row['document']
-        # Build full document URL
         document_url = f"https://records-backend-4lta.onrender.com/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
             'Area': row['area'],
-            'Document': document_url  # Returning full URL for frontend
+            'Document': document_url  # Return
         })
     return jsonify(results)
 
@@ -76,22 +76,23 @@ def search_document():
     if not keyword:
         return jsonify([])
 
+    # Filter rows that contain the keyword in the document column
     matches = df[df['document'].str.lower().str.contains(keyword)]
 
     results = []
     for _, row in matches.iterrows():
+        # Extract only the filename (e.g., VID12345.pdf)
         document_filename = row['document']
-        document_url = f"https://records-backend-4lta.onrender.com/documents/{document_filename}"
+        document_url = f"https://records-backend-4lta.onrender.com/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
             'Area': row['area'],
-            'Document': document_url
+            'Document': document_url  # Return only the filename
         })
 
     return jsonify(results)
 
-# Serve static documents
 @app.route('/documents/<path:filename>')
 def serve_doc(filename):
     return send_from_directory(docs_dir, filename)
