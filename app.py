@@ -8,10 +8,10 @@ from unidecode import unidecode
 from indic_transliteration.sanscript import transliterate, DEVANAGARI, ITRANS
 
 # Correct _file_ and _name_
-BASE_DIR = os.path.dirname(os.path.abspath(_file_))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'hindi_fuzzy_merge'))
 
-app = Flask(_name_)
+app = Flask(__name__)
 CORS(app)
 
 # Path to your sample CSV data and documents directory
@@ -96,5 +96,5 @@ def search_document():
 def serve_doc(filename):
     return send_from_directory(docs_dir, filename)
 
-if _name_ == '_main_':
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
