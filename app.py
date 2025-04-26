@@ -36,7 +36,7 @@ df['search_str'] = df.apply(lambda r: normalize(r['owner_name']) + ' ' + normali
 df['owner_str'] = df['owner_name'].apply(normalize)
 df['father_str'] = df['father_name'].apply(normalize)
 
-@app.route('/search')
+@app.route('/search', methods=['GET'])
 def search():
     owner_q = request.args.get('owner', '').strip()
     father_q = request.args.get('father', '').strip()
