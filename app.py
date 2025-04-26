@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
@@ -6,7 +7,7 @@ from Levenshtein import ratio
 from unidecode import unidecode
 from indic_transliteration.sanscript import transliterate, DEVANAGARI, ITRANS
 
-# Include hindi_fuzzy_merge module
+# Correct __file__ and __name__
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'hindi_fuzzy_merge'))
 
@@ -31,7 +32,6 @@ def normalize(text: str) -> str:
     return unidecode(text).lower()
 
 # Pre-compute normalized columns
-search_cols = ['owner_name', 'father_name']
 df['search_str'] = df.apply(lambda r: normalize(r['owner_name']) + ' ' + normalize(r['father_name']), axis=1)
 df['owner_str'] = df['owner_name'].apply(normalize)
 df['father_str'] = df['father_name'].apply(normalize)
@@ -46,7 +46,6 @@ def search():
     print(f"Received Search Query: owner='{owner_q}', father='{father_q}'")
     print(f"Normalized: owner='{owner_norm}', father='{father_norm}'")
 
-    # Create a copy to avoid modifying global df
     temp_df = df.copy()
 
     if owner_q and not father_q:
@@ -59,19 +58,18 @@ def search():
     else:
         return jsonify([])
 
-    # Filter and sort results
     matches = temp_df[temp_df['score'] >= 0.5].sort_values('score', ascending=False).head(20)
+
+    print(f"Found {len(matches)} matches")
 
     results = []
     for _, row in matches.iterrows():
-        # Extract only the filename (e.g., VID12345.pdf)
         document_filename = row['document']
-        document_url = f"https://records-backend-krc7.onrender.com/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
             'Area': row['area'],
-            'Document': document_url  # Return
+            'Document': document_filename  # Only filename
         })
     return jsonify(results)
 
@@ -82,24 +80,21 @@ def search_document():
     if not keyword:
         return jsonify([])
 
-    # Filter rows that contain the keyword in the document column
     matches = df[df['document'].str.lower().str.contains(keyword)]
 
     results = []
     for _, row in matches.iterrows():
-        # Extract only the filename (e.g., VID12345.pdf)
         document_filename = row['document']
-        document_url = f"https://records-backend-krc7.onrender.com/static/documents/{document_filename}"
         results.append({
             'Khata Number': row['Khata Number'],
             'Khasra Number': row['Khasra Number'],
             'Area': row['area'],
-            'Document': document_url  # Return only the filename
+            'Document': document_filename  # Only filename
         })
 
     return jsonify(results)
 
-@app.route('/documents/<path:filename>')
+@app.route('/static/documents/<path:filename>')
 def serve_doc(filename):
     return send_from_directory(docs_dir, filename)
 
